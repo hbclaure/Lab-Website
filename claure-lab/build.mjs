@@ -1,51 +1,50 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import {fileURLToPath} from 'node:url';
+
 const root=path.dirname(fileURLToPath(import.meta.url));
 const dist=path.join(root,'dist');
-const read=name=>JSON.parse(fs.readFileSync(path.join(root,'data',name+'.json'),'utf8'));
-const publications=read('publications'), research=read('research'), people=read('people');
-const esc=value=>String(value).replace(/[&<>"']/g,char=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[char]));
+const destination='https://claurelab.github.io/';
+
+// The legacy deployment contains redirects only, including after a local rebuild.
+fs.rmSync(dist,{recursive:true,force:true});
 fs.mkdirSync(dist,{recursive:true});
-fs.cpSync(path.join(root,'assets'),path.join(dist,'assets'),{recursive:true});
-for(const file of ['styles.css','site.js'])fs.copyFileSync(path.join(root,file),path.join(dist,file));
 fs.writeFileSync(path.join(dist,'.nojekyll'),'');
-const searchIcon='<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3" aria-hidden="true"><circle cx="10.5" cy="10.5" r="6.5"/><path d="m16 16 5 5"/></svg>';
-const menuIcon='<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M3 6h18M3 12h18M3 18h18"/></svg>';
-const githubIcon='<svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 .7a11.3 11.3 0 0 0-3.6 22c.6.1.8-.2.8-.5v-2c-3.3.7-4-1.4-4-1.4-.5-1.3-1.3-1.6-1.3-1.6-1.1-.8.1-.7.1-.7 1.2.1 1.8 1.2 1.8 1.2 1.1 1.8 2.8 1.3 3.4 1 .1-.8.4-1.3.7-1.6-2.6-.3-5.4-1.3-5.4-5.8 0-1.3.5-2.3 1.2-3.1-.1-.3-.5-1.5.2-3.1 0 0 1-.3 3.2 1.2a11 11 0 0 1 5.8 0c2.2-1.5 3.2-1.2 3.2-1.2.7 1.6.3 2.8.2 3.1.7.8 1.2 1.8 1.2 3.1 0 4.5-2.8 5.5-5.4 5.8.4.4.8 1.1.8 2.2v3.3c0 .3.2.6.8.5A11.3 11.3 0 0 0 12 .7Z"/></svg>';
-const emailIcon='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><rect x="2" y="4" width="20" height="16" rx="2"/><path d="m3 5 9 8 9-8"/></svg>';
-const pages=[['','Home'],['people','People'],['publications','Publications'],['research','Research'],['joining','Joining']];
-function layout(slug,title,body,classes='',baseOverride){
- const base=baseOverride??(slug?'../':'./');
- const nav=pages.map(([key,label])=>`<li><a href="${base}${key?key+'/':''}"${key===slug?' aria-current="page"':''}>${label}</a></li>`).join('');
+
+function redirectPage(route,{preservePath=false}={}){
+ const target=new URL(route,destination).href;
+ const routeScript=preservePath
+  ? `const target=new URL(${JSON.stringify(destination)});\nconst legacyPath=window.location.pathname.replace(/^\\/Lab-Website(?:\\/|$)/,'/');\ntarget.pathname=legacyPath;`
+  : `const target=new URL(${JSON.stringify(target)});`;
  return `<!doctype html>
-<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>${esc(title==='Home'?'Claure Lab':title+' | Claure Lab')}</title><meta name="description" content="Claure Lab at the University of Virginia studies human–robot interaction, human-aligned AI, fairness, and safety-critical robots for emergency care."><meta name="theme-color" content="#ffffff"><link rel="icon" href="${base}favicon.svg" type="image/svg+xml"><link rel="stylesheet" href="${base}styles.css"><script src="${base}site.js" defer></script></head>
-<body data-base="${base}"><a class="skip" href="#main">Skip to content</a><header class="masthead"><nav class="nav-wrap" aria-label="Primary navigation"><a class="site-title" href="${base}">Claure Lab</a><ul class="nav-links" id="navigation">${nav}</ul><button class="icon-button search-toggle" aria-label="Toggle search" aria-expanded="false" aria-controls="search-panel">${searchIcon}</button><button class="icon-button menu-toggle" aria-label="Toggle navigation" aria-expanded="false" aria-controls="navigation">${menuIcon}</button></nav></header>
-<section class="search-panel" id="search-panel" aria-label="Site search" hidden><label for="site-search" class="search-status">Search Claure Lab</label><input id="site-search" class="search-field" type="search" placeholder="Enter your search term…" autocomplete="off"><p class="search-status" id="search-status" aria-live="polite">Type at least two characters to search the lab website.</p><ul class="search-results"></ul></section>
-<main class="page ${classes}" id="main">${body}</main><footer class="page-footer"><div class="footer-links"><a href="https://github.com/hbclaure">${githubIcon}GitHub</a><a href="mailto:kam6vr@virginia.edu">${emailIcon}Email</a><a href="https://www.houstonclaure.com/">Houston Claure</a></div><p>© ${new Date().getFullYear()} Claure Lab · University of Virginia</p></footer></body></html>`;
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Claure Lab has moved</title>
+<link rel="canonical" href="${target}">
+<script>
+${routeScript}
+target.search=window.location.search;
+target.hash=window.location.hash;
+window.location.replace(target.href);
+</script>
+<noscript><meta http-equiv="refresh" content="0; url=${target}"></noscript>
+<style>body{max-width:42rem;margin:15vh auto;padding:1.5rem;font-family:system-ui,sans-serif;font-size:1.1rem;line-height:1.5;color:#333}h1{font-size:1.8rem;color:#000}a{color:#0056b3}a:focus-visible{outline:3px solid #0056b3;outline-offset:4px}</style>
+</head>
+<body>
+<h1>Claure Lab has moved</h1>
+<p>Our website is now at <a href="${target}">${target}</a>.</p>
+<p>If you are not redirected automatically, follow the link above.</p>
+</body>
+</html>
+`;
 }
-const hero='<img class="hero-photo" src="./assets/images/lab-group.jpg" width="1800" height="2400" alt="Claure Lab members together on the steps of the University of Virginia Rotunda" fetchpriority="high">';
-const home=`<section class="hero" aria-label="Claure Lab"><div>${hero}</div><h1 class="hero-title">Welcome to the Claure Lab</h1></section>
-<div class="home-intro"><p>We are a research group at the <a href="https://research.uvaem.com/labs/claure-lab"><strong>University of Virginia</strong></a>, led by <a href="./people/">Houston Claure</a>.</p><p>We study <span class="accent">how robots and AI can understand and work with people</span>—developing methods for fair, human-aligned decision making and exploring trustworthy robotic assistance in emergency care.</p></div>
-<section class="home-section"><h2>Latest News</h2><ul class="news"><li><time datetime="2026-09">Sep 2026</time><p><strong>Claure Lab at UVA.</strong> Houston joined the University of Virginia as an Assistant Professor of Emergency Medicine, with a courtesy appointment in Systems and Information Engineering.</p></li><li><time datetime="2026">2026</time><p><strong>New work on fairness and collaboration.</strong> Read our <a href="./publications/#year-2026">2026 publications</a> on evolving fairness judgments, perceived agency, and learning human preferences.</p></li></ul></section>
-<section class="home-section"><h2>Join the Lab</h2><p>Interested in human–robot interaction and AI that works with people? Learn about opportunities for <a href="./joining/#masters">master’s students</a>, <a href="./joining/#undergraduates">undergraduates</a>, and <a href="./joining/#visiting">visiting students</a>.</p></section>`;
-const peopleGroups=[
- {key:"Master's Students",title:'Master’s Students',id:'masters-students'},
- {key:'Medical Students',title:'Medical Students',id:'medical-students'},
- {key:'Undergraduate Students',title:'Undergraduate Students',id:'undergraduate-students'}
-];
-const personCard=p=>`<article class="person" data-image="${esc(p.image)}"><img class="portrait" src="../assets/images/${esc(p.image)}" width="200" height="200" alt="${esc(p.name)}" loading="lazy"><h4 class="person-name">${esc(p.name)}</h4>${p.role?`<p class="person-role">${esc(p.role)}</p>`:''}</article>`;
-const peopleBody=`<h1>Principal Investigator</h1><section class="pi" aria-label="Houston Claure"><div class="pi-portrait"><img class="portrait" src="../assets/images/houston-claure.jpg" width="200" height="200" alt="Houston Claure"></div><h2 class="person-name" style="border:0;margin:0 0 .3rem;padding:0;font-size:.8rem"><a href="https://www.houstonclaure.com/">Houston Claure</a></h2><p class="person-role">Assistant Professor of Emergency Medicine<br>Courtesy appointment in Systems and Information Engineering<br>University of Virginia</p><p class="pi-links"><a href="mailto:kam6vr@virginia.edu">Email</a><a href="https://www.houstonclaure.com/">Website</a><a href="https://scholar.google.com/citations?user=KgPQqs4AAAAJ">Google Scholar</a></p></section><h2>Lab Members</h2>${peopleGroups.map(group=>{const members=people.filter(p=>p.group===group.key);return `<section class="people-group" aria-labelledby="${group.id}"><h3 class="people-group-title" id="${group.id}">${group.title}</h3><div class="people-grid${members.length<4?' people-grid--small':''}" style="--member-columns:${members.length}">${members.map(personCard).join('')}</div></section>`}).join('')}`;
-const years=[...new Set(publications.map(p=>p.year))].sort((a,b)=>b-a);
-const publicationItem=p=>`<li id="${p.id}"><a class="publication-title" href="${esc(p.url)}">${esc(p.title)}</a><span class="publication-authors">${p.authors.map(a=>`${a==='Houston Claure'?'<strong>':''}${esc(a)}${p.equalContribution?.includes(a)?'*':''}${a==='Houston Claure'?'</strong>':''}`).join(', ')}.</span><span class="publication-venue">${esc(p.venue)}, ${p.year}.</span></li>`;
-const pubBody=`<div class="prose"><h1>Publications</h1><p class="page-intro">Selected publications on human–robot interaction, fairness, and human-aligned AI. See <a href="https://scholar.google.com/citations?user=KgPQqs4AAAAJ">Google Scholar</a> for the full publication record.</p><nav class="year-links" aria-label="Publication years">${years.map(y=>`<a href="#year-${y}">${y}</a>`).join('')}</nav>${years.map(y=>`<section aria-labelledby="year-${y}"><h2 class="publication-year" id="year-${y}">${y}</h2><ol class="publication-list">${publications.filter(p=>p.year===y).map(publicationItem).join('')}</ol></section>`).join('')}<p class="note">* Equal contribution.</p></div>`;
-const researchBody=`<div class="prose"><h1>Research</h1><p class="page-intro">Our research brings together human–robot interaction, human–computer interaction, and artificial intelligence to understand human expectations and help machines act on them.</p>${research.map(r=>`<section class="research-area" id="${r.id}"><h2>${esc(r.title)}</h2><p class="research-subtitle">${esc(r.subtitle)}</p><p>${esc(r.summary)}</p>${r.id==='human-aligned-decisions'?'<figure class="research-image"><img src="../assets/images/human-aligned-learning.jpg" alt="Demonstrations of algorithms for human-aligned decision making" loading="lazy"><figcaption>Human-aligned decision making in interactive settings.</figcaption></figure>':''}${r.publicationIds.length?`<div class="related-pubs"><h3>Selected Publications</h3><ul>${r.publicationIds.map(id=>publications.find(p=>p.id===id)).filter(Boolean).map(p=>`<li><a href="${esc(p.url)}">${esc(p.title)}</a> (${p.year})</li>`).join('')}</ul></div>`:''}${r.links.length?`<p class="topic-links">${r.links.map(l=>`<a href="${esc(l.url)}">${esc(l.label)}</a>`).join(' · ')}</p>`:''}</section>`).join('')}</div>`;
-const joiningBody=`<div class="prose"><h1>Joining the Lab</h1><p class="page-intro">We welcome motivated students interested in human–robot interaction, human-aligned artificial intelligence, fairness, and safety-critical robotic assistance. Please read about our <a href="../research/">research</a> to find the questions that interest you.</p><section class="join-section" id="masters"><h2>Master’s Students</h2><p>Master’s students interested in research with the lab are encouraged to contact Prof. Claure. Tell us which research direction you would like to explore and how your experience connects to it.</p><p><strong>How to get in touch:</strong> Email <a href="mailto:kam6vr@virginia.edu?subject=%5BMaster%E2%80%99s%20Student%5D">kam6vr@virginia.edu</a> with the subject <strong>[Master’s Student]</strong>. Include your CV, current program, a short description of your interests, and your availability.</p></section><section class="join-section" id="undergraduates"><h2>Undergraduate Students</h2><p>Undergraduates interested in learning how to do research are welcome to get in touch. Relevant interests include robotics, computer science, engineering, psychology, human behavior, and healthcare.</p><p><strong>How to get in touch:</strong> Email <a href="mailto:kam6vr@virginia.edu?subject=%5BUndergraduate%20Research%5D">kam6vr@virginia.edu</a> with the subject <strong>[Undergraduate Research]</strong>. Introduce yourself, share your CV or a brief summary of your experience, and describe your interests and weekly availability. Links to relevant projects are welcome.</p></section><section class="join-section" id="visiting"><h2>Visiting Students</h2><p>Students at other institutions who would like to explore a research visit should contact Prof. Claure to discuss the fit between their interests and the lab’s work.</p><p><strong>How to get in touch:</strong> Email <a href="mailto:kam6vr@virginia.edu?subject=%5BVisiting%20Student%5D">kam6vr@virginia.edu</a> with the subject <strong>[Visiting Student]</strong>. Include your CV, home institution, research interests, proposed visit dates, and any relevant funding arrangements.</p></section></div>`;
-for(const [slug,title,body,classes]of [['','Home',home,'home'],['people','People',peopleBody,'people-page'],['publications','Publications',pubBody,''],['research','Research',researchBody,''],['joining','Joining',joiningBody,'']]){
- const dir=path.join(dist,slug);fs.mkdirSync(dir,{recursive:true});fs.writeFileSync(path.join(dir,'index.html'),layout(slug,title,body,classes));
+
+for(const route of ['','people/','publications/','research/','joining/']){
+ const directory=path.join(dist,route);
+ fs.mkdirSync(directory,{recursive:true});
+ fs.writeFileSync(path.join(directory,'index.html'),redirectPage(route));
 }
-const search=[{title:'Home',url:'',text:'Claure Lab at the University of Virginia. Human–robot interaction, human-aligned AI, and emergency medicine.'},{title:'People',url:'people/',text:'Houston Claure, Principal Investigator. '+people.map(p=>p.name).filter(Boolean).join(', ')},{title:'Joining the Lab',url:'joining/',text:'Research opportunities for master’s, undergraduate, and visiting students. Contact kam6vr@virginia.edu.'},...research.map(r=>({title:r.title,url:'research/#'+r.id,text:r.summary})),...publications.map(p=>({title:p.title,url:'publications/#'+p.id,text:p.authors.join(', ')+'. '+p.venue+', '+p.year+'.'}))];
-fs.writeFileSync(path.join(dist,'search.json'),JSON.stringify(search));
-fs.writeFileSync(path.join(dist,'favicon.svg'),'<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64"><rect width="64" height="64" rx="12" fill="#0056b3"/><text x="32" y="43" text-anchor="middle" font-family="Arial,sans-serif" font-size="36" font-weight="700" fill="white">C</text></svg>');
-fs.writeFileSync(path.join(dist,'404.html'),layout('','Page not found','<h1>Page not found</h1><p>The page you are looking for may have moved.</p><p><a href="https://hbclaure.github.io/Lab-Website/">Return to Claure Lab</a></p>','','/Lab-Website/'));
-console.log(`Built five pages, ${publications.length} publications, and ${people.length} member portraits with the group photo.`);
+fs.writeFileSync(path.join(dist,'404.html'),redirectPage('',{preservePath:true}));
+console.log('Built five legacy route redirects and a path-preserving 404 redirect to '+destination);
